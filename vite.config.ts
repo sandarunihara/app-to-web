@@ -10,7 +10,6 @@ export default defineConfig({
       '/api/auth': {
         target: 'http://188.166.240.119:8080',
         changeOrigin: true,
-        followRedirects: true,
         cookieDomainRewrite: '',
       },
       // Proxy API calls to backend

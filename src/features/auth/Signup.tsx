@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { COLORS, TYPOGRAPHY, SPACING } from '../../config/theme.config';
+import { useAuth } from '../../providers/AuthProvider';
 import { useToast } from '../../providers/ToastProvider';
 import { authService } from '../../services/authService';
 
@@ -65,6 +66,23 @@ const styles = {
         borderRadius: SPACING.xs,
         marginBottom: SPACING.md,
     },
+    divider: {
+        flexDirection: 'row' as const,
+        alignItems: 'center',
+        marginTop: SPACING.xl,
+        marginBottom: SPACING.xl,
+        display: 'flex',
+        gap: SPACING.md,
+    },
+    dividerLine: {
+        flex: 1,
+        height: '1px',
+        backgroundColor: COLORS.border,
+    },
+    dividerText: {
+        color: COLORS.textSecondary,
+        fontSize: TYPOGRAPHY.fontSize.sm,
+    },
 };
 
 interface FormErrors {
@@ -78,7 +96,9 @@ interface FormErrors {
 
 export const Signup: React.FC = () => {
     const navigate = useNavigate();
+    const { login } = useAuth();
     const { showToast } = useToast();
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -88,7 +108,77 @@ export const Signup: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
+    const googleButtonRef = useRef<HTMLDivElement>(null);
+
+    // Google callback — same endpoint works for both login and signup
+    const handleGoogleCallback = useCallback(async (response: { credential?: string }) => {
+        if (!response?.credential) {
+            showToast('Google Sign-Up failed. Please try again.', 'error');
+            return;
+        }
+
+        setGoogleLoading(true);
+        try {
+            const authResponse = await authService.loginWithGoogle(response.credential, googleClientId!);
+            await login(authResponse);
+            showToast('Account created successfully!', 'success');
+            navigate('/dashboard');
+        } catch (err: any) {
+            showToast(err.message || 'Google sign-up failed', 'error');
+        } finally {
+            setGoogleLoading(false);
+        }
+    }, [googleClientId, login, navigate, showToast]);
+
+    useEffect(() => {
+        if (!googleClientId) return;
+
+        const initializeGoogle = () => {
+            if (!window.google?.accounts?.id) return;
+
+            window.google.accounts.id.initialize({
+                client_id: googleClientId,
+                callback: handleGoogleCallback,
+                use_fedcm_for_prompt: false,
+            });
+
+            if (googleButtonRef.current) {
+                window.google.accounts.id.renderButton(
+                    googleButtonRef.current,
+                    {
+                        type: 'standard',
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'signup_with',
+                        shape: 'rectangular',
+                        width: 400,
+                    }
+                );
+            }
+        };
+
+        if (window.google?.accounts?.id) {
+            initializeGoogle();
+            return;
+        }
+
+        const existingScript = document.querySelector('script[data-google-identity="true"]');
+        if (existingScript) {
+            existingScript.addEventListener('load', initializeGoogle, { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.dataset.googleIdentity = 'true';
+        script.onload = initializeGoogle;
+        script.onerror = () => console.error('Failed to load Google Identity Services');
+        document.head.appendChild(script);
+    }, [googleClientId, handleGoogleCallback]);
 
     const validateForm = (): FormErrors => {
         const newErrors: FormErrors = {};
@@ -230,6 +320,29 @@ export const Signup: React.FC = () => {
                         fullWidth
                         style={{ marginTop: SPACING.lg }}
                     />
+
+                    <div style={styles.divider}>
+                        <div style={styles.dividerLine} />
+                        <span style={styles.dividerText}>Or sign up with</span>
+                        <div style={styles.dividerLine} />
+                    </div>
+
+                    {/* Google Sign-Up button rendered by Google Identity Services */}
+                    <div
+                        ref={googleButtonRef}
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            minHeight: '44px',
+                            opacity: googleLoading ? 0.6 : 1,
+                            pointerEvents: googleLoading ? 'none' : 'auto',
+                        }}
+                    />
+                    {googleLoading && (
+                        <p style={{ textAlign: 'center', color: COLORS.textSecondary, fontSize: '13px', marginTop: '8px' }}>
+                            Signing up with Google...
+                        </p>
+                    )}
 
                     <div style={styles.footer}>
                         <span style={styles.footerText}>Already have an account?</span>

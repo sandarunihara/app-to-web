@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -133,10 +133,30 @@ export const Login: React.FC = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [googleReady, setGoogleReady] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [errors, setErrors] = useState<FormErrors>({});
     const [showResend, setShowResend] = useState(false);
+    const googleButtonRef = useRef<HTMLDivElement>(null);
+
+    // Google callback - handles the credential response after user signs in
+    const handleGoogleCallback = useCallback(async (response: { credential?: string }) => {
+        if (!response?.credential) {
+            showToast('Google Sign-In failed. Please try again.', 'error');
+            return;
+        }
+
+        setGoogleLoading(true);
+        try {
+            const authResponse = await authService.loginWithGoogle(response.credential, googleClientId!);
+            await login(authResponse);
+            showToast('Login successful!', 'success');
+            navigate('/dashboard');
+        } catch (err: any) {
+            showToast(err.message || 'Google login failed', 'error');
+        } finally {
+            setGoogleLoading(false);
+        }
+    }, [googleClientId, login, navigate, showToast]);
 
     useEffect(() => {
         if (!googleClientId) {
@@ -150,27 +170,24 @@ export const Login: React.FC = () => {
 
             window.google.accounts.id.initialize({
                 client_id: googleClientId,
-                callback: async (response: { credential?: string }) => {
-                    if (!response?.credential) {
-                        showToast('Google Sign-In failed. Please try again.', 'error');
-                        return;
-                    }
-
-                    setGoogleLoading(true);
-                    try {
-                        const authResponse = await authService.loginWithGoogle(response.credential, googleClientId);
-                        login(authResponse);
-                        showToast('Login successful!', 'success');
-                        navigate('/dashboard');
-                    } catch (err: any) {
-                        showToast(err.message || 'Google login failed', 'error');
-                    } finally {
-                        setGoogleLoading(false);
-                    }
-                },
+                callback: handleGoogleCallback,
+                use_fedcm_for_prompt: false, // Disable FedCM to avoid NetworkError
             });
 
-            setGoogleReady(true);
+            // Render the official Google Sign-In button in our container
+            if (googleButtonRef.current) {
+                window.google.accounts.id.renderButton(
+                    googleButtonRef.current,
+                    {
+                        type: 'standard',
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'continue_with',
+                        shape: 'rectangular',
+                        width: 400,
+                    }
+                );
+            }
         };
 
         if (window.google?.accounts?.id) {
@@ -194,7 +211,7 @@ export const Login: React.FC = () => {
             console.error('Failed to load Google Identity Services');
         };
         document.head.appendChild(script);
-    }, [googleClientId, login, navigate, showToast]);
+    }, [googleClientId, handleGoogleCallback]);
 
     const handleResendVerification = async () => {
         try {
@@ -266,19 +283,7 @@ export const Login: React.FC = () => {
         }
     };
 
-    const handleGoogleLogin = () => {
-        if (!googleClientId) {
-            showToast('Google client ID not configured', 'error');
-            return;
-        }
-
-        if (!googleReady || !window.google?.accounts?.id) {
-            showToast('Google Sign-In is still loading. Please wait.', 'info');
-            return;
-        }
-
-        window.google.accounts.id.prompt();
-    };
+    // No more handleGoogleLogin needed — the rendered Google button handles everything
 
     return (
         <ScreenWrapper className="flex items-center justify-center min-h-screen bg-white">
@@ -353,15 +358,22 @@ export const Login: React.FC = () => {
                         <div style={styles.dividerLine} />
                     </div>
 
-                    <Button
-                        title="Continue with Google"
-                        mode="outlined"
-                        fullWidth
-                        loading={googleLoading}
-                        disabled={!googleClientId || !googleReady}
-                        onClick={handleGoogleLogin}
-                        icon={<span style={{ color: '#DB4437', fontWeight: 'bold' }}>G</span>} // Use simple G or SVG if needed
+                    {/* Google Sign-In button rendered by Google Identity Services */}
+                    <div
+                        ref={googleButtonRef}
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            minHeight: '44px',
+                            opacity: googleLoading ? 0.6 : 1,
+                            pointerEvents: googleLoading ? 'none' : 'auto',
+                        }}
                     />
+                    {googleLoading && (
+                        <p style={{ textAlign: 'center', color: COLORS.textSecondary, fontSize: '13px', marginTop: '8px' }}>
+                            Signing in with Google...
+                        </p>
+                    )}
 
                     <div style={styles.footer}>
                         <span style={styles.footerText}>Don't have an account?</span>
