@@ -6,6 +6,35 @@ import { learningApi } from './services/learningApi';
 import { useToast } from '../../providers/ToastProvider';
 import type { LearningMaterial } from '../../types/models';
 
+/** Extract YouTube video ID from various URL formats */
+const getYouTubeVideoId = (url: string): string | null => {
+    if (!url) return null;
+    const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+    if (shortMatch) return shortMatch[1];
+    const longMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    if (longMatch) return longMatch[1];
+    const embedMatch = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+    if (embedMatch) return embedMatch[1];
+    return null;
+};
+
+const getYouTubeEmbedUrl = (url: string): string | null => {
+    const id = getYouTubeVideoId(url);
+    return id ? `https://www.youtube.com/embed/${id}` : null;
+};
+
+const getYouTubeThumbnail = (url: string): string | null => {
+    const id = getYouTubeVideoId(url);
+    return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+};
+
+/** Get a displayable thumbnail: use provided thumbnailUrl, or auto-generate from YouTube videoUrl */
+const getMaterialThumbnail = (material: LearningMaterial): string | null => {
+    if (material.thumbnailUrl) return material.thumbnailUrl;
+    if (material.videoUrl) return getYouTubeThumbnail(material.videoUrl);
+    return null;
+};
+
 export const LearningFeed: React.FC = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
@@ -118,9 +147,23 @@ export const LearningFeed: React.FC = () => {
                                 className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-lg transition-all cursor-pointer group grid grid-cols-1 lg:grid-cols-2"
                             >
                                 <div className="relative h-56 lg:h-auto overflow-hidden bg-gray-100">
-                                    {featuredItem.thumbnailUrl ? (
+                                    {featuredItem.type?.toUpperCase() === 'VIDEO' && featuredItem.videoUrl && getYouTubeEmbedUrl(featuredItem.videoUrl) ? (
+                                        <div className="w-full h-full min-h-[280px]">
+                                            <iframe
+                                                width="100%"
+                                                height="100%"
+                                                src={`${getYouTubeEmbedUrl(featuredItem.videoUrl)}?autoplay=1&mute=1&rel=0`}
+                                                title={featuredItem.title}
+                                                frameBorder="0"
+                                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                allowFullScreen
+                                                className="w-full h-full"
+                                                onClick={(e) => e.stopPropagation()}
+                                            />
+                                        </div>
+                                    ) : getMaterialThumbnail(featuredItem) ? (
                                         <img
-                                            src={featuredItem.thumbnailUrl}
+                                            src={getMaterialThumbnail(featuredItem)!}
                                             alt={featuredItem.title}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         />
@@ -133,7 +176,7 @@ export const LearningFeed: React.FC = () => {
                                         Featured
                                     </div>
                                     <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-sm text-white text-xs font-medium rounded-md flex items-center gap-1">
-                                        {featuredItem.type === 'video' ? <PlayCircle size={12} /> : <FileText size={12} />}
+                                        {featuredItem.type?.toUpperCase() === 'VIDEO' ? <PlayCircle size={12} /> : <FileText size={12} />}
                                         <span className="capitalize">{featuredItem.type}</span>
                                     </div>
                                 </div>
@@ -171,19 +214,28 @@ export const LearningFeed: React.FC = () => {
                                         className="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md hover:border-purple-100 transition-all group cursor-pointer"
                                     >
                                         <div className="relative h-44 overflow-hidden bg-gray-100">
-                                            {material.thumbnailUrl ? (
-                                                <img
-                                                    src={material.thumbnailUrl}
-                                                    alt={material.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                />
+                                            {getMaterialThumbnail(material) ? (
+                                                <>
+                                                    <img
+                                                        src={getMaterialThumbnail(material)!}
+                                                        alt={material.title}
+                                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                    />
+                                                    {material.type?.toUpperCase() === 'VIDEO' && (
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+                                                            <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                                <PlayCircle size={28} className="text-purple-600 ml-0.5" />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </>
                                             ) : (
                                                 <div className="w-full h-full bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
                                                     <BookOpen size={32} className="text-purple-200" />
                                                 </div>
                                             )}
                                             <div className="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold rounded-md flex items-center gap-1">
-                                                {material.type === 'video' ? <PlayCircle size={11} /> : <FileText size={11} />}
+                                                {material.type?.toUpperCase() === 'VIDEO' ? <PlayCircle size={11} /> : <FileText size={11} />}
                                                 <span className="capitalize">{material.type}</span>
                                             </div>
                                             <button

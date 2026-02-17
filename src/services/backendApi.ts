@@ -142,6 +142,14 @@ class BackendApiClient {
     }
 
     async post<T = any>(url: string, data?: any, config?: any): Promise<T> {
+        // When sending FormData, remove Content-Type so the browser sets multipart/form-data with the correct boundary
+        if (data instanceof FormData) {
+            config = config || {};
+            config.headers = config.headers || {};
+            delete config.headers['Content-Type'];
+            // Also override the instance default
+            config.headers['Content-Type'] = undefined;
+        }
         const response = await this.client.post<T>(url, data, config);
         return response.data;
     }

@@ -1,10 +1,34 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, User, Share2, Bookmark, Play } from 'lucide-react';
+import { ArrowLeft, Clock, User, Share2, Bookmark } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { useToast } from '../../providers/ToastProvider';
 import { learningApi } from '../learning/services/learningApi';
 import type { LearningMaterial } from '../../types/models';
+
+/**
+ * Convert various YouTube URL formats to an embeddable URL.
+ * Supports: youtu.be/ID, youtube.com/watch?v=ID, youtube.com/embed/ID
+ */
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  if (!url) return null;
+  let videoId: string | null = null;
+
+  // Already an embed URL
+  if (url.includes('youtube.com/embed/')) return url.split('?')[0];
+
+  // youtu.be/VIDEO_ID
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+  if (shortMatch) videoId = shortMatch[1];
+
+  // youtube.com/watch?v=VIDEO_ID
+  if (!videoId) {
+    const longMatch = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+    if (longMatch) videoId = longMatch[1];
+  }
+
+  return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+};
 
 export function LearningDetail() {
   const { id } = useParams<{ id: string }>();
@@ -13,7 +37,6 @@ export function LearningDetail() {
 
   const [material, setMaterial] = useState<LearningMaterial | null>(null);
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -49,7 +72,7 @@ export function LearningDetail() {
 
   const handleShare = async () => {
     if (!material) return;
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -79,8 +102,9 @@ export function LearningDetail() {
     );
   }
 
-  const isVideo = material.type === 'video';
-  const isArticle = material.type === 'article';
+  const isVideo = material.type?.toUpperCase() === 'VIDEO';
+  const isArticle = material.type?.toUpperCase() === 'ARTICLE';
+  const embedUrl = isVideo && material.videoUrl ? getYouTubeEmbedUrl(material.videoUrl) : null;
 
   return (
     <ScreenWrapper className="bg-gray-50 min-h-screen">
@@ -96,22 +120,31 @@ export function LearningDetail() {
 
       <div className="max-w-4xl mx-auto p-4 md:p-8">
         {/* Content Preview */}
+        {/* Video / Image Preview */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-          {isVideo && material.thumbnailUrl ? (
-            <div className="relative aspect-video bg-black">
-              <img
-                src={material.thumbnailUrl}
-                alt={material.title}
-                className="w-full h-full object-cover"
+          {isVideo && embedUrl ? (
+            <div className="aspect-video bg-black">
+              <iframe
+                width="100%"
+                height="100%"
+                src={`${embedUrl}?autoplay=1&rel=0`}
+                title={material.title}
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
               />
-              <button
-                onClick={() => setIsPlaying(true)}
-                className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition group"
+            </div>
+          ) : isVideo && material.videoUrl ? (
+            <div className="aspect-video bg-black flex items-center justify-center">
+              <a
+                href={material.videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-white text-lg hover:underline"
               >
-                <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center group-hover:scale-110 transition">
-                  <Play size={32} className="text-blue-600 ml-1" fill="currentColor" />
-                </div>
-              </button>
+                ▶ Open video in new tab
+              </a>
             </div>
           ) : isArticle && material.thumbnailUrl ? (
             <img
@@ -131,7 +164,7 @@ export function LearningDetail() {
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex-1">
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">{material.title}</h1>
-              
+
               {/* Meta Info */}
               <div className="flex flex-wrap gap-6 text-gray-600 mb-4">
                 {material.duration && (
@@ -173,11 +206,10 @@ export function LearningDetail() {
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleBookmark}
-                className={`p-2 rounded-lg transition ${
-                  isBookmarked
+                className={`p-2 rounded-lg transition ${isBookmarked
                     ? 'bg-yellow-100 text-yellow-600'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 <Bookmark size={24} fill={isBookmarked ? 'currentColor' : 'none'} />
               </button>
@@ -224,30 +256,7 @@ export function LearningDetail() {
         </div>
       </div>
 
-      {/* Video Modal */}
-      {isPlaying && isVideo && (
-        <div className="fixed inset-0 bg-black bg-opacity-95 z-50 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-4xl">
-            <button
-              onClick={() => setIsPlaying(false)}
-              className="absolute -top-10 right-0 text-white hover:text-gray-300 text-2xl"
-            >
-              ✕
-            </button>
-            <div className="aspect-video bg-black rounded-lg overflow-hidden">
-              <iframe
-                width="100%"
-                height="100%"
-                src={material.videoUrl || ''}
-                title={material.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      )}
+
     </ScreenWrapper>
   );
 }

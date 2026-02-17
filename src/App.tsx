@@ -37,6 +37,7 @@ const EditItemValue = React.lazy(() => import('./features/medical-records/EditIt
 const WellnessDetail = React.lazy(() => import('./features/wellness/WellnessDetail.tsx').then(m => ({ default: m.WellnessDetail })));
 const LearningDetail = React.lazy(() => import('./features/learning/LearningDetail.tsx').then(m => ({ default: m.LearningDetail })));
 const Chatbot = React.lazy(() => import('./features/wellness/Chatbot.tsx').then(m => ({ default: m.Chatbot })));
+const NotificationsList = React.lazy(() => import('./features/notifications/NotificationsList.tsx').then(m => ({ default: m.NotificationsList })));
 
 // Loading Component
 const LoadingFallback = () => (
@@ -246,6 +247,13 @@ function App() {
           <Route path="/learning/:id" element={
             <React.Suspense fallback={<LoadingFallback />}>
               <LearningDetail />
+            </React.Suspense>
+          } />
+
+          {/* Notifications Route */}
+          <Route path="/notifications" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <NotificationsList />
             </React.Suspense>
           } />
 

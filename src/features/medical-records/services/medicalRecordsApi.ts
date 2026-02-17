@@ -95,14 +95,17 @@ export const medicalRecordsApi = {
   createValueWithAttachments: async (valueData: ReportValueRequest, files: File[]): Promise<ReportValue> => {
     try {
       const formData = new FormData();
-      formData.append('value', JSON.stringify(valueData));
+      // Send 'value' as a JSON Blob so Spring Boot @RequestPart can deserialize it
+      const valueBlob = new Blob([JSON.stringify(valueData)], { type: 'application/json' });
+      formData.append('value', valueBlob);
       files.forEach(file => {
         formData.append('files', file);
       });
 
+      // Don't set Content-Type manually — the browser needs to set it with the correct boundary
       const response = await backendApi.post<ApiResponse<ReportValue>>('/report-values/with-attachments', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': undefined as any,
         },
       });
       return response.data || response;
@@ -117,11 +120,7 @@ export const medicalRecordsApi = {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await backendApi.post<ApiResponse<ReportValue>>(`/report-values/${valueId}/attachments`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await backendApi.post<ApiResponse<ReportValue>>(`/report-values/${valueId}/attachments`, formData);
       return response.data || response;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to add attachment');

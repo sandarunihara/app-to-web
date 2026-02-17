@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { User, Mail, Phone, Calendar, MapPin, Flag, Save, Loader2, Weight, Ruler } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Flag, Save, Loader2, Weight, Ruler, Camera } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../providers/AuthProvider';
@@ -21,10 +21,13 @@ interface PersonalDetailsForm {
 }
 
 export const PersonalDetails: React.FC = () => {
-    const { user, refreshUser } = useAuth(); // login used to update user context if needed, or we might need a specific updateUser
+    const { user, refreshUser } = useAuth();
     const { showToast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
+    const [uploadingImage, setUploadingImage] = useState(false);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { register, handleSubmit, setValue, formState: { errors } } = useForm<PersonalDetailsForm>();
 
@@ -74,14 +77,14 @@ export const PersonalDetails: React.FC = () => {
             // Convert weight and height to numbers
             const weight = data.weight ? parseFloat(data.weight) : undefined;
             const height = data.height ? parseFloat(data.height) : undefined;
-            
+
             // Calculate BMI if both weight and height are provided
             let bmi: number | undefined = undefined;
             if (weight && height) {
                 const heightInMeters = height / 100;
                 bmi = weight / (heightInMeters * heightInMeters);
             }
-            
+
             const profileData = {
                 ...data,
                 weight,
@@ -109,8 +112,93 @@ export const PersonalDetails: React.FC = () => {
         );
     }
 
+    // Build avatar URL
+    const rawAvatar = (user as any)?.avatar || user?.profileImage;
+    const userAvatar = avatarPreview || (
+        rawAvatar?.startsWith('/uploads/')
+            ? `/api${rawAvatar}`
+            : rawAvatar
+    );
+    const userName = user ? [user.firstName, user.lastName].filter(Boolean).join(' ') || 'User' : 'User';
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=7B2D8E&color=fff&size=200`;
+
+    const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            showToast('Image must be under 5MB', 'error');
+            return;
+        }
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            showToast('Please select an image file', 'error');
+            return;
+        }
+
+        // Show preview immediately
+        const previewUrl = URL.createObjectURL(file);
+        setAvatarPreview(previewUrl);
+
+        // Upload
+        try {
+            setUploadingImage(true);
+            await profileApi.uploadProfileImage(file);
+            showToast('Profile photo updated successfully', 'success');
+            await refreshUser();
+        } catch (error: any) {
+            console.error('Error uploading image:', error);
+            setAvatarPreview(null); // Revert preview on failure
+            if (error?.response?.status === 413) {
+                showToast('Image is too large. Please try a smaller one.', 'error');
+            } else {
+                showToast('Failed to upload profile photo', 'error');
+            }
+        } finally {
+            setUploadingImage(false);
+            // Reset the input so the same file can be selected again
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            {/* Profile Photo Section */}
+            <div className="flex flex-col items-center mb-8 pb-6 border-b border-gray-100">
+                <div className="relative group">
+                    <img
+                        src={userAvatar || defaultAvatar}
+                        alt="Profile"
+                        className="w-28 h-28 rounded-full object-cover border-4 border-purple-100 shadow-md"
+                        onError={(e) => { (e.target as HTMLImageElement).src = defaultAvatar; }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingImage}
+                        className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-purple-600 hover:bg-purple-700 text-white flex items-center justify-center shadow-lg transition-all border-2 border-white disabled:opacity-70"
+                        title="Change profile photo"
+                    >
+                        {uploadingImage ? (
+                            <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                            <Camera size={16} />
+                        )}
+                    </button>
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        className="hidden"
+                    />
+                </div>
+                <h3 className="mt-3 text-lg font-bold text-gray-900">{userName}</h3>
+                <p className="text-sm text-gray-500">{user?.email}</p>
+            </div>
+
             <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <User className="text-purple-600" size={24} />
                 Personal Details

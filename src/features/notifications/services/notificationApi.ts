@@ -1,105 +1,88 @@
-import type { Notification, NotificationPreferences, NotificationType } from '../../../types/models';
 import { backendApi } from '../../../services/backendApi';
 
 interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data: T;
+  timestamp?: string;
+}
+
+interface PaginationResponse<T> {
+  content: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+}
+
+export interface NotificationResponse {
+  id: number;
+  userId: number;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export const notificationApi = {
-  getNotifications: async (): Promise<Notification[]> => {
+  // Get notifications for current user (matching mobile app endpoint)
+  getByUserId: async (userId: number, page = 0, size = 50): Promise<NotificationResponse[]> => {
     try {
-      const response = await backendApi.get<ApiResponse<Notification[]>>('/notifications');
-      return (response.data || []).sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const response = await backendApi.get<ApiResponse<PaginationResponse<NotificationResponse>>>(
+        `/notifications/user/${userId}?page=${page}&size=${size}`
       );
+      return response.data?.content || [];
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to fetch notifications');
+      console.error('Error fetching notifications:', error);
+      return [];
     }
   },
 
-  getUnreadNotifications: async (): Promise<Notification[]> => {
+  // Get unread count for user
+  getUnreadCount: async (userId: number): Promise<number> => {
     try {
-      const response = await backendApi.get<ApiResponse<Notification[]>>('/notifications/unread');
-      return (response.data || []).sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const response = await backendApi.get<ApiResponse<number>>(
+        `/notifications/user/${userId}/unread/count`
       );
+      return response.data || 0;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to fetch unread notifications');
+      console.error('Error fetching unread count:', error);
+      return 0;
     }
   },
 
-  getUnreadCount: async (): Promise<number> => {
+  // Mark a notification as read
+  markAsRead: async (notificationId: number): Promise<boolean> => {
     try {
-      const response = await backendApi.get<ApiResponse<{ count: number }>>('/notifications/unread/count');
-      return response.data?.count || 0;
+      await backendApi.patch(`/notifications/${notificationId}/read`, {});
+      return true;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to fetch unread count');
+      console.error('Error marking notification as read:', error);
+      return false;
     }
   },
 
-  markAsRead: async (id: string): Promise<void> => {
+  // Mark all notifications as read for user
+  markAllAsRead: async (userId: number): Promise<boolean> => {
     try {
-      await backendApi.put(`/notifications/${id}/read`, {});
+      await backendApi.patch(`/notifications/user/${userId}/read-all`, {});
+      return true;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to mark notification as read');
+      console.error('Error marking all as read:', error);
+      return false;
     }
   },
 
-  markAllAsRead: async (): Promise<void> => {
+  // Delete a notification
+  delete: async (notificationId: number): Promise<boolean> => {
     try {
-      await backendApi.put('/notifications/read-all', {});
+      await backendApi.delete(`/notifications/${notificationId}`);
+      return true;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to mark all as read');
-    }
-  },
-
-  deleteNotification: async (id: string): Promise<void> => {
-    try {
-      await backendApi.delete(`/notifications/${id}`);
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to delete notification');
-    }
-  },
-
-  getPreferences: async (): Promise<NotificationPreferences> => {
-    try {
-      const response = await backendApi.get<ApiResponse<NotificationPreferences>>('/notifications/preferences');
-      return response.data || {
-        riskAlerts: true,
-        testReminders: true,
-        appointmentReminders: true,
-        wellnessTips: true,
-        learningUpdates: true,
-        emailNotifications: true,
-        pushNotifications: true,
-      };
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to fetch preferences');
-    }
-  },
-
-  updatePreferences: async (preferences: Partial<NotificationPreferences>): Promise<NotificationPreferences> => {
-    try {
-      const response = await backendApi.put<ApiResponse<NotificationPreferences>>(
-        '/notifications/preferences',
-        preferences
-      );
-      return response.data;
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to update preferences');
-    }
-  },
-
-  getNotificationsByType: async (type: NotificationType): Promise<Notification[]> => {
-    try {
-      const response = await backendApi.get<ApiResponse<Notification[]>>(`/notifications/type/${type}`);
-      return (response.data || []).sort((a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to fetch notifications by type');
+      console.error('Error deleting notification:', error);
+      return false;
     }
   },
 };

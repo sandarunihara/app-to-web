@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Calendar, Heart, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Download, Calendar, Heart, BarChart3, FileText, ExternalLink } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { useToast } from '../../providers/ToastProvider';
 import { jendoTestApi, type JendoTest } from '../../services/jendoTestApi';
@@ -173,6 +173,42 @@ export function ReportDetail() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* PDF Report Preview */}
+        <div className="bg-white rounded-xl shadow-sm p-6 md:p-8 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <FileText size={20} className="text-blue-500" />
+              <h3 className="text-lg font-bold text-gray-900">Report Preview</h3>
+            </div>
+            {test.reportPreviewUrl && (
+              <a
+                href={test.reportPreviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600 font-medium"
+              >
+                Open in new tab
+                <ExternalLink size={14} />
+              </a>
+            )}
+          </div>
+          {test.reportPreviewUrl ? (
+            <div className="w-full rounded-lg overflow-hidden border border-gray-200" style={{ height: '600px' }}>
+              <iframe
+                src={test.reportPreviewUrl}
+                title="Report Preview"
+                className="w-full h-full"
+                style={{ border: 'none' }}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+              <FileText size={48} className="mb-3" />
+              <p className="text-sm">No report preview available</p>
+            </div>
+          )}
         </div>
 
         {/* Download Button */}

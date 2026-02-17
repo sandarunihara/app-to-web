@@ -36,7 +36,7 @@ export const AddItemValue: React.FC = () => {
             const validFiles = selectedFiles.filter(file => {
                 const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
                 const maxSize = 10 * 1024 * 1024; // 10MB
-                
+
                 if (!validTypes.includes(file.type)) {
                     showToast(`${file.name} is not a valid file type`, 'error');
                     return false;
@@ -88,12 +88,14 @@ export const AddItemValue: React.FC = () => {
                 valueData.valueText = formData.valueText;
             }
 
-            if (files.length > 0) {
-                // Create value with attachments
-                await medicalRecordsApi.createValueWithAttachments(valueData, files);
-            } else {
-                // Create value without attachments
-                await medicalRecordsApi.createValue(valueData);
+            // Step 1: Create the value (without attachments)
+            const createdValue = await medicalRecordsApi.createValue(valueData);
+
+            // Step 2: Upload attachments one by one (if any)
+            if (files.length > 0 && createdValue?.id) {
+                for (const file of files) {
+                    await medicalRecordsApi.addAttachment(Number(createdValue.id), file);
+                }
             }
 
             showToast('Record added successfully', 'success');
