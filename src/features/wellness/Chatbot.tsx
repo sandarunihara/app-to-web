@@ -105,12 +105,27 @@ export function Chatbot() {
     setInputText('');
 
     try {
-      // Send message to API
-      const response = await wellnessApi.sendChatMessage(inputText);
+      // Send message to API with conversation history
+      const history = updatedMessages
+        .slice(1) // Skip welcome message
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        }));
+      
+      const response = await wellnessApi.sendChatMessage(inputText, history);
+      
+      // Handle response safely
+      let botText = 'Unable to process your request';
+      if (response && typeof response === 'object' && response.content) {
+        botText = response.content;
+      } else if (typeof response === 'string') {
+        botText = response;
+      }
       
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: typeof response === 'string' ? response : (response as any).content || 'Unable to process your request',
+        text: botText,
         sender: 'bot',
         timestamp: new Date(),
       };

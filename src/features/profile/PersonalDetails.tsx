@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { User, Mail, Phone, Calendar, MapPin, Flag, Save, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, Calendar, MapPin, Flag, Save, Loader2, Weight, Ruler } from 'lucide-react';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../providers/AuthProvider';
@@ -16,10 +16,12 @@ interface PersonalDetailsForm {
     gender: string;
     address: string;
     nationality: string;
+    weight?: string;
+    height?: string;
 }
 
 export const PersonalDetails: React.FC = () => {
-    const { user } = useAuth(); // login used to update user context if needed, or we might need a specific updateUser
+    const { user, refreshUser } = useAuth(); // login used to update user context if needed, or we might need a specific updateUser
     const { showToast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
@@ -39,6 +41,8 @@ export const PersonalDetails: React.FC = () => {
                     setValue('gender', user.gender || '');
                     setValue('address', user.address || '');
                     setValue('nationality', user.nationality || '');
+                    setValue('weight', user.weight ? String(user.weight) : '');
+                    setValue('height', user.height ? String(user.height) : '');
                 }
 
                 // Fetch latest from API
@@ -51,6 +55,8 @@ export const PersonalDetails: React.FC = () => {
                 setValue('gender', profile.gender || '');
                 setValue('address', profile.address || '');
                 setValue('nationality', profile.nationality || '');
+                setValue('weight', profile.weight ? String(profile.weight) : '');
+                setValue('height', profile.height ? String(profile.height) : '');
             } catch (error) {
                 console.error('Failed to load profile:', error);
                 showToast('Failed to load profile data', 'error');
@@ -65,13 +71,28 @@ export const PersonalDetails: React.FC = () => {
     const onSubmit = async (data: PersonalDetailsForm) => {
         setIsLoading(true);
         try {
-            await profileApi.updateProfile(data);
+            // Convert weight and height to numbers
+            const weight = data.weight ? parseFloat(data.weight) : undefined;
+            const height = data.height ? parseFloat(data.height) : undefined;
+            
+            // Calculate BMI if both weight and height are provided
+            let bmi: number | undefined = undefined;
+            if (weight && height) {
+                const heightInMeters = height / 100;
+                bmi = weight / (heightInMeters * heightInMeters);
+            }
+            
+            const profileData = {
+                ...data,
+                weight,
+                height,
+                bmi,
+            };
+            await profileApi.updateProfile(profileData);
             showToast('Profile updated successfully', 'success');
 
-            // Ideally update local auth context too
-            // For now, we rely on the fact that next page load or specific action triggers re-fetch
-            // But if AuthProvider has a refreshUser method, we'd use it.
-            // Assuming we don't, the user might see stale data in header until refresh.
+            // Refresh user data in context
+            await refreshUser();
         } catch (error) {
             console.error('Failed to update profile:', error);
             showToast('Failed to update profile', 'error');
@@ -169,6 +190,32 @@ export const PersonalDetails: React.FC = () => {
                         error={errors.nationality?.message}
                         left={<Flag size={18} />}
                         {...register('nationality')}
+                    />
+
+                    <Input
+                        label="Weight (kg)"
+                        placeholder="Enter your weight in kg"
+                        type="number"
+                        step="0.1"
+                        error={errors.weight?.message}
+                        left={<Weight size={18} />}
+                        {...register('weight', {
+                            min: { value: 1, message: 'Weight must be at least 1 kg' },
+                            max: { value: 500, message: 'Weight must be less than 500 kg' }
+                        })}
+                    />
+
+                    <Input
+                        label="Height (cm)"
+                        placeholder="Enter your height in cm"
+                        type="number"
+                        step="0.1"
+                        error={errors.height?.message}
+                        left={<Ruler size={18} />}
+                        {...register('height', {
+                            min: { value: 1, message: 'Height must be at least 1 cm' },
+                            max: { value: 300, message: 'Height must be less than 300 cm' }
+                        })}
                     />
                 </div>
 

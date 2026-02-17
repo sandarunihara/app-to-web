@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard,
     Stethoscope,
+    Calendar,
     Activity,
     FileText,
     Heart,
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     const navItems = [
         { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { path: '/doctors', label: 'Doctors', icon: Stethoscope },
+        { path: '/appointments', label: 'Appointments', icon: Calendar },
         { path: '/tests', label: 'Jendo Tests', icon: Activity },
         { path: '/wellness', label: 'Wellness', icon: Heart },
         { path: '/records', label: 'Medical Records', icon: FileText },

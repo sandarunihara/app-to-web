@@ -76,12 +76,11 @@ export const profileApi = {
                 currentPassword,
                 newPassword
             });
-            return response.data; // This might be wrong if response.data is the object {success, message}. 
-            // If backend returns { success: true, message: "...", data: { success: true, message: "..." } } ? Unlikely.
-            // Usually change password returns void or simple success message.
-            // Let's assume standard ApiResponse wrapper: { success: true, message: "...", data: ... }
-            // If the data is empty or null, we might just return the whole response or true.
-            // Let's return the whole response for now since the return type is { success: boolean; message: string } matches logic.
+            // Return the wrapper response with success and message, not the data
+            return {
+                success: response.success ?? true,
+                message: response.message || 'Password changed successfully'
+            };
         } catch (error) {
             console.error('Error changing password:', error);
             throw error;

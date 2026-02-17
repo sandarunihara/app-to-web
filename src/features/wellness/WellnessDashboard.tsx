@@ -1,31 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Leaf, Award, TrendingUp, Sun, Moon, MessageCircle, ArrowRight, Sparkles } from 'lucide-react';
+import { Leaf, Award, TrendingUp, Sun, Moon, MessageCircle } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { wellnessApi } from './services/wellnessApi';
-import { wellnessRecommendationApi } from './services/wellnessRecommendationApi';
+import { wellnessRecommendationApi } from '../../services/wellnessRecommendationApi';
+import type { DailyAiTipsResponse } from '../../services/wellnessRecommendationApi';
 import { useToast } from '../../providers/ToastProvider';
-import type { WellnessTip, WellnessRecommendation } from '../../types/models';
+import { useAuth } from '../../providers/AuthProvider';
 
 export const WellnessDashboard: React.FC = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
-    const [tips, setTips] = useState<WellnessTip[]>([]);
-    const [recommendations, setRecommendations] = useState<WellnessRecommendation[]>([]);
+    const { user } = useAuth();
+    const [dailyTips, setDailyTips] = useState<DailyAiTipsResponse | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadWellnessData();
-    }, []);
+    }, [user]);
 
     const loadWellnessData = async () => {
+        if (!user) return;
+        
         try {
             setLoading(true);
-            const tipsData = await wellnessApi.getTips();
-            setTips(tipsData);
-
-            const recsData = await wellnessRecommendationApi.getByRiskLevel('moderate');
-            setRecommendations(recsData);
+            const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id;
+            const tipsData = await wellnessRecommendationApi.getDailyAiTipsForUser(userId);
+            setDailyTips(tipsData);
         } catch (error: any) {
             showToast(error.message || 'Failed to load wellness data', 'error');
         } finally {
@@ -87,58 +87,97 @@ export const WellnessDashboard: React.FC = () => {
                     </div>
                 )}
 
-                {/* Featured Tips */}
-                {!loading && tips.length > 0 && (
-                    <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-2">
-                                <Sparkles size={18} className="text-purple-500" />
-                                <h3 className="text-base font-bold text-gray-900">Featured Tips</h3>
+                {/* Daily AI Tips by Category */}
+                {!loading && dailyTips && (
+                    <>
+                        {/* Diet Tips */}
+                        {dailyTips.diet && dailyTips.diet.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Leaf size={18} className="text-green-500" />
+                                    <h3 className="text-base font-bold text-gray-900">Diet & Nutrition</h3>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {dailyTips.diet.map((tip, index) => (
+                                        <div key={`diet-${index}`} className="bg-white p-5 rounded-xl border border-gray-100 hover:shadow-md hover:border-green-100 transition-all">
+                                            <h4 className="font-semibold text-gray-900 mb-2">{tip.title}</h4>
+                                            <p className="text-gray-500 text-sm leading-relaxed mb-3">{tip.description}</p>
+                                            {tip.longDescription && (
+                                                <p className="text-gray-400 text-xs leading-relaxed">{tip.longDescription}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <button
-                                onClick={() => navigate('/wellness/diet')}
-                                className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
-                            >
-                                See all <ArrowRight size={14} />
-                            </button>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                            {tips.slice(0, 3).map((tip) => (
-                                <div key={tip.id} className="bg-white p-6 rounded-xl border border-gray-100 hover:shadow-md hover:border-purple-100 transition-all">
-                                    <h4 className="font-semibold text-gray-900 mb-2">{tip.title}</h4>
-                                    <p className="text-gray-500 text-sm leading-relaxed mb-4 line-clamp-3">{tip.description}</p>
-                                    <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-gray-100 text-gray-500 uppercase tracking-wider">
-                                        {tip.category}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                        )}
 
-                {/* Recommendations */}
-                {!loading && recommendations.length > 0 && (
-                    <div>
-                        <div className="flex items-center gap-2 mb-4">
-                            <Award size={18} className="text-blue-500" />
-                            <h3 className="text-base font-bold text-gray-900">Health Recommendations</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-                            {recommendations.slice(0, 3).map((rec) => (
-                                <div key={rec.id} className="bg-gradient-to-br from-green-50 to-emerald-50 p-6 rounded-xl border border-green-200/60 hover:shadow-md transition-all">
-                                    <h4 className="font-semibold text-gray-900 mb-2">{rec.title}</h4>
-                                    <p className="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">{rec.description}</p>
-                                    <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-green-100 text-green-700 capitalize tracking-wider">
-                                        {rec.category || 'wellness'}
-                                    </span>
+                        {/* Exercise Tips */}
+                        {dailyTips.exercise && dailyTips.exercise.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <TrendingUp size={18} className="text-orange-500" />
+                                    <h3 className="text-base font-bold text-gray-900">Exercise</h3>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {dailyTips.exercise.map((tip, index) => (
+                                        <div key={`exercise-${index}`} className="bg-white p-5 rounded-xl border border-gray-100 hover:shadow-md hover:border-orange-100 transition-all">
+                                            <h4 className="font-semibold text-gray-900 mb-2">{tip.title}</h4>
+                                            <p className="text-gray-500 text-sm leading-relaxed mb-3">{tip.description}</p>
+                                            {tip.longDescription && (
+                                                <p className="text-gray-400 text-xs leading-relaxed">{tip.longDescription}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Sleep Tips */}
+                        {dailyTips.sleep && dailyTips.sleep.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Moon size={18} className="text-blue-500" />
+                                    <h3 className="text-base font-bold text-gray-900">Sleep Quality</h3>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {dailyTips.sleep.map((tip, index) => (
+                                        <div key={`sleep-${index}`} className="bg-white p-5 rounded-xl border border-gray-100 hover:shadow-md hover:border-blue-100 transition-all">
+                                            <h4 className="font-semibold text-gray-900 mb-2">{tip.title}</h4>
+                                            <p className="text-gray-500 text-sm leading-relaxed mb-3">{tip.description}</p>
+                                            {tip.longDescription && (
+                                                <p className="text-gray-400 text-xs leading-relaxed">{tip.longDescription}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Stress Management Tips */}
+                        {dailyTips.stress && dailyTips.stress.length > 0 && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Sun size={18} className="text-yellow-500" />
+                                    <h3 className="text-base font-bold text-gray-900">Stress Management</h3>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {dailyTips.stress.map((tip, index) => (
+                                        <div key={`stress-${index}`} className="bg-white p-5 rounded-xl border border-gray-100 hover:shadow-md hover:border-yellow-100 transition-all">
+                                            <h4 className="font-semibold text-gray-900 mb-2">{tip.title}</h4>
+                                            <p className="text-gray-500 text-sm leading-relaxed mb-3">{tip.description}</p>
+                                            {tip.longDescription && (
+                                                <p className="text-gray-400 text-xs leading-relaxed">{tip.longDescription}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 {/* Empty State */}
-                {!loading && tips.length === 0 && recommendations.length === 0 && (
+                {!loading && !dailyTips && (
                     <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-200">
                         <Award size={40} className="mx-auto text-gray-300 mb-3" />
                         <p className="text-gray-500">No recommendations available at the moment.</p>

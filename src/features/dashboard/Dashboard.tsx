@@ -72,7 +72,7 @@ const getRiskIcon = (level: string) => {
 };
 
 const calculateBMI = (weight?: number, height?: number): { value: string; status: string; color: string } => {
-    if (!weight || !height) {
+    if (!weight || !height || weight <= 0 || height <= 0) {
         return { value: '--', status: 'Not set', color: COLORS.textSecondary };
     }
     const heightInMeters = height / 100;
@@ -87,15 +87,15 @@ const calculateBMI = (weight?: number, height?: number): { value: string; status
 
 const calculateProfileCompletion = (user: any): number => {
     if (!user) return 0;
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'address', 'nationality'];
+    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'dateOfBirth', 'gender', 'address', 'nationality', 'weight', 'height'];
     let completedFields = 0;
     for (const field of requiredFields) {
-        if (user[field] !== undefined && user[field] !== null && user[field] !== '') completedFields++;
+        const value = user[field];
+        if (value !== undefined && value !== null && value !== '') {
+            completedFields++;
+        }
     }
-    // Check health parameters too
-    if (user.healthParameters?.weight) completedFields++;
-    if (user.healthParameters?.height) completedFields++;
-    const totalFields = requiredFields.length + 2; // +2 for weight and height
+    const totalFields = requiredFields.length; // 10 fields total
     return Math.round((completedFields / totalFields) * 100);
 };
 
@@ -120,12 +120,13 @@ export const Dashboard: React.FC = () => {
     const { user, isAuthenticated } = useAuth();
     const { showToast } = useToast();
     const hasShownCompleteToast = useRef(false);
+    const hasInitialized = useRef(false);
 
     const [jendoTests, setJendoTests] = useState<JendoTest[]>([]);
     const [loading, setLoading] = useState(true);
     const [wellnessRecommendations, setWellnessRecommendations] = useState<WellnessRecommendation[]>([]);
 
-    const bmiData = useMemo(() => calculateBMI(user?.healthParameters?.weight, user?.healthParameters?.height), [user?.healthParameters?.weight, user?.healthParameters?.height]);
+    const bmiData = useMemo(() => calculateBMI(user?.weight || user?.healthParameters?.weight, user?.height || user?.healthParameters?.height), [user?.weight, user?.height, user?.healthParameters?.weight, user?.healthParameters?.height]);
     const profileComplete = useMemo(() => calculateProfileCompletion(user), [user]);
 
     const fetchJendoTests = useCallback(async () => {
@@ -175,13 +176,19 @@ export const Dashboard: React.FC = () => {
     }, [fetchWellnessRecommendations]);
 
     useEffect(() => {
-        if (profileComplete === 100 && !hasShownCompleteToast.current) {
+        // Only show toast on initial profile completion during this session
+        if (profileComplete === 100 && !hasShownCompleteToast.current && hasInitialized.current) {
             hasShownCompleteToast.current = true;
-            showToast('Your profile is completed!', 'success');
+            showToast('Your profile completed', 'success');
         } else if (profileComplete < 100) {
             hasShownCompleteToast.current = false;
         }
-    }, [profileComplete, showToast]);
+        
+        // Mark as initialized after first check
+        if (!hasInitialized.current && user) {
+            hasInitialized.current = true;
+        }
+    }, [profileComplete, showToast, user]);
 
     const latestTest = jendoTests[0] || null;
     const scoreHistory = useMemo(() => {
@@ -393,6 +400,24 @@ export const Dashboard: React.FC = () => {
                                     <p className="text-lg font-bold text-gray-900">{dashboardData.healthOverview.heartRate.value}</p>
                                 </div>
                                 <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">{dashboardData.healthOverview.heartRate.status}</span>
+                            </div>
+
+                            {/* BMI */}
+                            <div className="flex items-center gap-4 p-3.5 bg-gray-50 rounded-lg">
+                                <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                                    <User size={18} className="text-indigo-500" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-gray-400">Body Mass Index</p>
+                                    <p className="text-lg font-bold text-gray-900">{dashboardData.healthOverview.bmi.value}</p>
+                                </div>
+                                <span className="text-xs font-medium px-2 py-1 rounded-md"
+                                    style={{
+                                        color: dashboardData.healthOverview.bmi.color,
+                                        backgroundColor: dashboardData.healthOverview.bmi.status === 'Normal' ? '#E8F5E9' : dashboardData.healthOverview.bmi.status === 'Not set' ? '#F5F5F5' : '#FFF3E0'
+                                    }}>
+                                    {dashboardData.healthOverview.bmi.status}
+                                </span>
                             </div>
                         </div>
                     </div>

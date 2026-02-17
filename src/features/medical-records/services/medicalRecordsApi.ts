@@ -1,63 +1,173 @@
-export interface MedicalRecord {
-    id: string;
-    title: string;
-    doctorName: string;
-    hospitalName: string;
-    date: string;
-    type: 'Prescription' | 'Lab Report' | 'Diagnosis' | 'Other';
-    fileUrl?: string; // URL to view/download
-    fileName?: string;
+import type { ReportCategory, ReportSection, ReportItem, ReportValue, ReportValueRequest } from '../../../types/models';
+import { backendApi } from '../../../services/backendApi';
+
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+  timestamp: string;
 }
 
 export const medicalRecordsApi = {
-    getAllRecords: async (): Promise<MedicalRecord[]> => {
-        // Mock data
-        return [
-            {
-                id: '1',
-                title: 'General Checkup Prescription',
-                doctorName: 'Dr. Sarah Johnson',
-                hospitalName: 'City General Hospital',
-                date: '2023-10-15',
-                type: 'Prescription',
-                fileName: 'prescription_oct15.pdf'
-            },
-            {
-                id: '2',
-                title: 'Blood Test Results',
-                doctorName: 'Lab Corp',
-                hospitalName: 'City General Hospital',
-                date: '2023-10-12',
-                type: 'Lab Report',
-                fileName: 'blood_test_results.pdf'
-            },
-            {
-                id: '3',
-                title: 'MRI Scan Report',
-                doctorName: 'Dr. Michael Chen',
-                hospitalName: 'St. Mary\'s Medical Center',
-                date: '2023-09-05',
-                type: 'Lab Report',
-                fileName: 'mri_scan.pdf'
-            }
-        ];
-    },
-
-    uploadRecord: async (file: File, metadata: any): Promise<MedicalRecord> => {
-        // Mock upload
-        return {
-            id: Math.random().toString(),
-            title: metadata.title || file.name,
-            doctorName: metadata.doctorName || 'Unknown',
-            hospitalName: metadata.hospitalName || 'Unknown',
-            date: new Date().toISOString().split('T')[0],
-            type: metadata.type || 'Other',
-            fileName: file.name
-        };
-    },
-
-    deleteRecord: async (id: string): Promise<void> => {
-        // Mock delete
-        console.log('Deleting record', id);
+  // Get all report categories
+  getCategories: async (): Promise<ReportCategory[]> => {
+    try {
+      const response = await backendApi.get<ApiResponse<ReportCategory[]>>('/report-categories');
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch categories');
     }
+  },
+
+  // Get all report sections
+  getSections: async (): Promise<ReportSection[]> => {
+    try {
+      const response = await backendApi.get<ApiResponse<ReportSection[]>>('/report-sections');
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch sections');
+    }
+  },
+
+  // Get sections by category ID (client-side filter)
+  getSectionsByCategory: async (categoryId: number): Promise<ReportSection[]> => {
+    try {
+      const allSections = await medicalRecordsApi.getSections();
+      return allSections.filter(section => section.categoryId === categoryId);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch sections');
+    }
+  },
+
+  // Get all report items
+  getItems: async (): Promise<ReportItem[]> => {
+    try {
+      const response = await backendApi.get<ApiResponse<ReportItem[]>>('/report-items');
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch items');
+    }
+  },
+
+  // Get items by section ID (client-side filter)
+  getItemsBySection: async (sectionId: number): Promise<ReportItem[]> => {
+    try {
+      const allItems = await medicalRecordsApi.getItems();
+      return allItems.filter(item => item.sectionId === sectionId);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch items');
+    }
+  },
+
+  // Get report item by ID
+  getItemById: async (itemId: number): Promise<ReportItem> => {
+    try {
+      const response = await backendApi.get<ApiResponse<ReportItem>>(`/report-items/${itemId}`);
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch item');
+    }
+  },
+
+  // Get all values for a report item
+  getItemValues: async (itemId: number, userId: number): Promise<ReportValue[]> => {
+    try {
+      const response = await backendApi.get<ApiResponse<ReportValue[]>>(`/report-values/user/${userId}`);
+      const allValues = response.data || response;
+      // Filter by itemId on the frontend
+      return allValues.filter(value => value.reportItemId === itemId);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch item values');
+    }
+  },
+
+  // Create report value (without attachments)
+  createValue: async (valueData: ReportValueRequest): Promise<ReportValue> => {
+    try {
+      const response = await backendApi.post<ApiResponse<ReportValue>>('/report-values', valueData);
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to create value');
+    }
+  },
+
+  // Create report value with attachments
+  createValueWithAttachments: async (valueData: ReportValueRequest, files: File[]): Promise<ReportValue> => {
+    try {
+      const formData = new FormData();
+      formData.append('value', JSON.stringify(valueData));
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+
+      const response = await backendApi.post<ApiResponse<ReportValue>>('/report-values/with-attachments', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to create value with attachments');
+    }
+  },
+
+  // Add attachment to existing value
+  addAttachment: async (valueId: number, file: File): Promise<ReportValue> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await backendApi.post<ApiResponse<ReportValue>>(`/report-values/${valueId}/attachments`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to add attachment');
+    }
+  },
+
+  // Get value by ID
+  getValueById: async (valueId: number): Promise<ReportValue> => {
+    try {
+      const response = await backendApi.get<ApiResponse<ReportValue>>(`/report-values/${valueId}`);
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to fetch value');
+    }
+  },
+
+  // Update value
+  updateValue: async (valueId: number, valueData: ReportValueRequest): Promise<ReportValue> => {
+    try {
+      const response = await backendApi.put<ApiResponse<ReportValue>>(`/report-values/${valueId}`, valueData);
+      return response.data || response;
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to update value');
+    }
+  },
+
+  // Delete value
+  deleteValue: async (valueId: number): Promise<void> => {
+    try {
+      await backendApi.delete(`/report-values/${valueId}`);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to delete value');
+    }
+  },
+
+  // Delete attachment
+  deleteAttachment: async (attachmentId: number): Promise<void> => {
+    try {
+      await backendApi.delete(`/report-values/attachments/${attachmentId}`);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to delete attachment');
+    }
+  },
+
+  // Get download URL for attachment
+  getAttachmentDownloadUrl: (attachmentId: number): string => {
+    return `/api/report-values/attachments/${attachmentId}/download`;
+  },
 };

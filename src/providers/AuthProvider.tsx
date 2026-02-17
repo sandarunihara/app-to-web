@@ -8,7 +8,7 @@ import type { UserProfile } from '../types/models';
 interface AuthContextType {
     user: UserProfile | null;
     isLoading: boolean;
-    login: (data: AuthResponse) => void;
+    login: (data: AuthResponse) => Promise<void>;
     loginWithGoogle: (data: { idToken: string }) => Promise<void>;
     logout: () => void;
     isAuthenticated: boolean;
@@ -76,12 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const login = (data: AuthResponse) => {
+    const login = async (data: AuthResponse) => {
         if (!data || !data.user) {
             console.error('Invalid login data received:', data);
             throw new Error('Invalid authentication response: missing user data');
         }
 
+        // Set initial user data from login response
         const userWithDefaults = {
             ...data.user,
             phone: data.user.phone || '',
@@ -90,12 +91,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } as UserProfile;
         setUser(userWithDefaults);
         localStorage.setItem('user_profile', JSON.stringify(userWithDefaults));
+        
+        // Fetch complete profile from API to ensure all fields are up to date
+        try {
+            const profile = await profileApi.getProfile();
+            setUser(profile);
+            localStorage.setItem('user_profile', JSON.stringify(profile));
+        } catch (error) {
+            console.error('Failed to fetch complete profile after login:', error);
+            // Keep the user data from login response if profile fetch fails
+        }
     };
 
     const loginWithGoogle = async (data: { idToken: string }) => {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'WEB-CLIENT-ID';
         const response = await authService.loginWithGoogle(data.idToken, clientId);
-        login(response);
+        await login(response);
     };
 
     const logout = async () => {

@@ -57,6 +57,7 @@ export function AppointmentDetail() {
 
   const statusColors: Record<string, string> = {
     pending: 'yellow',
+    scheduled: 'blue',
     confirmed: 'green',
     cancelled: 'red',
     completed: 'blue',

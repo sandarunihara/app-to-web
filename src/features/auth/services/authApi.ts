@@ -12,8 +12,8 @@ interface ApiResponse<T> {
 const AUTH_ENDPOINTS = {
   LOGIN: '/auth/login',
   REGISTER: '/auth/register',
-  FORGOT_PASSWORD: '/auth/forgot-password',
-  RESET_PASSWORD: '/auth/reset-password',
+  FORGOT_PASSWORD: '/auth/password-reset/request-otp',
+  RESET_PASSWORD: '/auth/password-reset/confirm-otp',
   CHANGE_PASSWORD: '/users/change-password',
   ME: '/users/me',
   LOGOUT: '/auth/logout',

@@ -23,10 +23,17 @@ const NewPassword = React.lazy(() => import('./features/auth/NewPassword.tsx').t
 
 // Feature Pages (Named exports)
 const DoctorDetail = React.lazy(() => import('./features/doctors/DoctorDetail.tsx').then(m => ({ default: m.DoctorDetail })));
+const AppointmentsList = React.lazy(() => import('./features/doctors/AppointmentsList.tsx').then(m => ({ default: m.AppointmentsList })));
 const AppointmentDetail = React.lazy(() => import('./features/doctors/AppointmentDetail.tsx').then(m => ({ default: m.AppointmentDetail })));
 const ReportDetail = React.lazy(() => import('./features/jendo-tests/ReportDetail.tsx').then(m => ({ default: m.ReportDetail })));
 const MyReportDetail = React.lazy(() => import('./features/medical-records/MyReportDetail.tsx').then(m => ({ default: m.MyReportDetail })));
 const AddReport = React.lazy(() => import('./features/medical-records/AddReport.tsx').then(m => ({ default: m.AddReport })));
+const CategorySections = React.lazy(() => import('./features/medical-records/CategorySections.tsx').then(m => ({ default: m.CategorySections })));
+const SectionItems = React.lazy(() => import('./features/medical-records/SectionItems.tsx').then(m => ({ default: m.SectionItems })));
+const ItemRecords = React.lazy(() => import('./features/medical-records/ItemRecords.tsx').then(m => ({ default: m.ItemRecords })));
+const AddItemValue = React.lazy(() => import('./features/medical-records/AddItemValue.tsx').then(m => ({ default: m.AddItemValue })));
+const RecordDetail = React.lazy(() => import('./features/medical-records/RecordDetail.tsx').then(m => ({ default: m.RecordDetail })));
+const EditItemValue = React.lazy(() => import('./features/medical-records/EditItemValue.tsx').then(m => ({ default: m.EditItemValue })));
 const WellnessDetail = React.lazy(() => import('./features/wellness/WellnessDetail.tsx').then(m => ({ default: m.WellnessDetail })));
 const LearningDetail = React.lazy(() => import('./features/learning/LearningDetail.tsx').then(m => ({ default: m.LearningDetail })));
 const Chatbot = React.lazy(() => import('./features/wellness/Chatbot.tsx').then(m => ({ default: m.Chatbot })));
@@ -119,6 +126,7 @@ function App() {
             </React.Suspense>
           </PublicRoute>
         } />
+        <Route path="/auth/forgot-password" element={<Navigate to="/forgot-password" replace />} />
         <Route path="/verify-otp" element={
           <PublicRoute>
             <React.Suspense fallback={<LoadingFallback />}>
@@ -154,6 +162,13 @@ function App() {
               <DoctorDetail />
             </React.Suspense>
           } />
+
+          {/* Appointments Routes */}
+          <Route path="/appointments" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <AppointmentsList />
+            </React.Suspense>
+          } />
           <Route path="/appointments/:id" element={
             <React.Suspense fallback={<LoadingFallback />}>
               <AppointmentDetail />
@@ -172,6 +187,36 @@ function App() {
           {/* Medical Records Routes */}
           <Route path="/my-reports" element={<RecordsList />} />
           <Route path="/records" element={<RecordsList />} />
+          <Route path="/my-reports/category/:categoryId" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <CategorySections />
+            </React.Suspense>
+          } />
+          <Route path="/my-reports/section/:sectionId" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <SectionItems />
+            </React.Suspense>
+          } />
+          <Route path="/my-reports/item/:itemId" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <ItemRecords />
+            </React.Suspense>
+          } />
+          <Route path="/my-reports/item/:itemId/add" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <AddItemValue />
+            </React.Suspense>
+          } />
+          <Route path="/my-reports/value/:valueId" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <RecordDetail />
+            </React.Suspense>
+          } />
+          <Route path="/my-reports/edit/:valueId" element={
+            <React.Suspense fallback={<LoadingFallback />}>
+              <EditItemValue />
+            </React.Suspense>
+          } />
           <Route path="/my-reports/:id" element={
             <React.Suspense fallback={<LoadingFallback />}>
               <MyReportDetail />

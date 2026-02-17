@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -15,11 +15,33 @@ export function VerifyOtp() {
   const [loading, setLoading] = useState(false);
   const storedSignupData = localStorage.getItem('signupData');
   const storedResendEmail = localStorage.getItem('resendVerificationEmail');
-  const email = storedResendEmail || location.state?.email || '';
+  
+  // Get email from various sources
+  let email = '';
+  if (storedResendEmail) {
+    email = storedResendEmail;
+  } else if (location.state?.email) {
+    email = location.state.email;
+  } else if (storedSignupData) {
+    try {
+      const signupData = JSON.parse(storedSignupData);
+      email = signupData.email;
+    } catch {
+      // Invalid signup data
+    }
+  }
 
-  if (!email && !storedSignupData) {
-    showToast('Session expired. Please start again.', 'error');
-    navigate('/signup');
+  // Check if we have required data on mount
+  useEffect(() => {
+    if (!email) {
+      showToast('Session expired. Please start again.', 'error');
+      navigate('/signup', { replace: true });
+    }
+  }, [email, navigate, showToast]);
+
+  // Don't render form if no email
+  if (!email) {
+    return null;
   }
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -29,16 +51,11 @@ export function VerifyOtp() {
       return;
     }
 
-    const resolvedEmail = email || (storedSignupData ? JSON.parse(storedSignupData).email : '');
-    if (!resolvedEmail) {
-      showToast('Email not found. Please start again.', 'error');
-      navigate('/signup');
-      return;
-    }
-
     setLoading(true);
     try {
-      await authApi.verifyOtp({ email: resolvedEmail, otp });
+      await authApi.verifyOtp({ email, otp });
+      
+      // If this is from signup flow, confirm the signup
       if (storedSignupData) {
         const signupData = JSON.parse(storedSignupData);
         await authApi.confirmSignup(signupData);
@@ -48,6 +65,7 @@ export function VerifyOtp() {
         return;
       }
 
+      // If this is from resend verification flow
       if (storedResendEmail) {
         localStorage.removeItem('resendVerificationEmail');
       }
@@ -65,7 +83,7 @@ export function VerifyOtp() {
     <ScreenWrapper className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col justify-center px-4 py-8">
       <div className="w-full max-w-md mx-auto">
         <button
-          onClick={() => navigate('/forgot-password')}
+          onClick={() => navigate(storedSignupData ? '/signup' : '/login')}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-8"
         >
           <ArrowLeft size={20} />

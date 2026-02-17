@@ -1,6 +1,6 @@
 import { backendApi } from '../../../services/backendApi';
 import { ENDPOINTS } from '../../../config/api.config';
-import type { Doctor, Appointment, TimeSlot, DoctorSpecialty, AppointmentType } from '../../../types';
+import type { Doctor, Appointment, TimeSlot, DoctorSpecialty, AppointmentType, AppointmentBookingRequest } from '../../../types';
 
 interface ApiResponse<T> {
   data?: T;
@@ -186,11 +186,18 @@ export const doctorApi = {
         id: dto.id,
         doctorId: dto.doctorId,
         userId: dto.userId,
-        doctor: dto.doctor,
+        doctor: {
+          id: dto.doctorId,
+          name: dto.doctorName || 'Doctor',
+          specialty: mapSpecialty(dto.specialty),
+          hospital: dto.hospital || '',
+          rating: 0,
+          isAvailable: true,
+        },
         date: dto.date || dto.appointmentDate,
         time: dto.time || dto.appointmentTime,
         type: (dto.type || dto.consultationType || 'in_person') as AppointmentType,
-        status: dto.status,
+        status: dto.status?.toLowerCase() || 'scheduled',
         notes: dto.notes,
         createdAt: dto.createdAt,
       })) as Appointment[];
@@ -207,11 +214,18 @@ export const doctorApi = {
         id: dto.id,
         doctorId: dto.doctorId,
         userId: dto.userId,
-        doctor: dto.doctor,
+        doctor: {
+          id: dto.doctorId,
+          name: dto.doctorName || 'Doctor',
+          specialty: mapSpecialty(dto.specialty),
+          hospital: dto.hospital || '',
+          rating: 0,
+          isAvailable: true,
+        },
         date: dto.date || dto.appointmentDate,
         time: dto.time || dto.appointmentTime,
         type: (dto.type || dto.consultationType || 'in_person') as AppointmentType,
-        status: dto.status,
+        status: dto.status?.toLowerCase() || 'scheduled',
         notes: dto.notes,
         createdAt: dto.createdAt,
       } as Appointment;
@@ -220,7 +234,7 @@ export const doctorApi = {
     }
   },
 
-  bookAppointment: async (appointmentData: Partial<Appointment>): Promise<Appointment> => {
+  bookAppointment: async (appointmentData: Partial<AppointmentBookingRequest>): Promise<Appointment> => {
     try {
       const response = await backendApi.post<ApiResponse<any>>('/appointments', appointmentData);
       const dto = response.data || response;
@@ -228,11 +242,18 @@ export const doctorApi = {
         id: dto.id,
         doctorId: dto.doctorId,
         userId: dto.userId,
-        doctor: dto.doctor,
+        doctor: {
+          id: dto.doctorId,
+          name: dto.doctorName || appointmentData.doctorName || 'Doctor',
+          specialty: mapSpecialty(dto.specialty || appointmentData.specialty),
+          hospital: dto.hospital || '',
+          rating: 0,
+          isAvailable: true,
+        },
         date: dto.date || dto.appointmentDate,
         time: dto.time || dto.appointmentTime,
         type: (dto.type || dto.consultationType || 'in_person') as AppointmentType,
-        status: dto.status,
+        status: dto.status?.toLowerCase() || 'scheduled',
         notes: dto.notes,
         createdAt: dto.createdAt,
       } as Appointment;
@@ -249,11 +270,18 @@ export const doctorApi = {
         id: dto.id,
         doctorId: dto.doctorId,
         userId: dto.userId,
-        doctor: dto.doctor,
+        doctor: {
+          id: dto.doctorId,
+          name: dto.doctorName || 'Doctor',
+          specialty: mapSpecialty(dto.specialty),
+          hospital: dto.hospital || '',
+          rating: 0,
+          isAvailable: true,
+        },
         date: dto.date || dto.appointmentDate,
         time: dto.time || dto.appointmentTime,
         type: (dto.type || dto.consultationType || 'in_person') as AppointmentType,
-        status: dto.status,
+        status: dto.status?.toLowerCase() || 'scheduled',
         notes: dto.notes,
         createdAt: dto.createdAt,
       } as Appointment;
@@ -281,18 +309,25 @@ export const doctorApi = {
   getUserAppointments: async (userId: string, page = 0, size = 50): Promise<Appointment[]> => {
     try {
       const response = await backendApi.get<ApiResponse<PaginationResponse<any>>>(
-        `/users/${userId}/appointments?page=${page}&size=${size}`
+        `/appointments/user/${userId}?page=${page}&size=${size}`
       );
       const data = response.data?.content || [];
       return data.map((dto: any) => ({
         id: dto.id,
         doctorId: dto.doctorId,
         userId: dto.userId,
-        doctor: dto.doctor,
+        doctor: {
+          id: dto.doctorId,
+          name: dto.doctorName || 'Doctor',
+          specialty: mapSpecialty(dto.specialty),
+          hospital: dto.hospital || '',
+          rating: 0,
+          isAvailable: true,
+        },
         date: dto.date || dto.appointmentDate,
         time: dto.time || dto.appointmentTime,
         type: (dto.type || dto.consultationType || 'in_person') as AppointmentType,
-        status: dto.status,
+        status: dto.status?.toLowerCase() || 'scheduled',
         notes: dto.notes,
         createdAt: dto.createdAt,
       })) as Appointment[];

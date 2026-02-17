@@ -234,7 +234,7 @@ export const Login: React.FC = () => {
 
         try {
             const response = await authService.login(email.trim(), password);
-            login(response);
+            await login(response);
             showToast('Login successful!', 'success');
             navigate('/dashboard'); // Route for (tabs)
         } catch (err: any) {

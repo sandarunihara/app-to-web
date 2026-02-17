@@ -3,36 +3,49 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Heart, TrendingUp, MessageCircle } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { useToast } from '../../providers/ToastProvider';
-import { wellnessApi } from '../wellness/services/wellnessApi';
-import { wellnessRecommendationApi } from '../wellness/services/wellnessRecommendationApi';
-import type { WellnessTip, WellnessRecommendation } from '../../types/models';
+import { useAuth } from '../../providers/AuthProvider';
+import { wellnessRecommendationApi } from '../../services/wellnessRecommendationApi';
+import type { WellnessRecommendation } from '../../services/wellnessRecommendationApi';
 // State management removed
 
 export function WellnessDetail() {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
 
-  const [tips, setTips] = useState<WellnessTip[]>([]);
+  const [tips, setTips] = useState<WellnessRecommendation[]>([]);
   const [recommendations, setRecommendations] = useState<WellnessRecommendation[]>([]);
   const [activeTab, setActiveTab] = useState<'tips' | 'recommendations'>('tips');
 
   useEffect(() => {
-    if (!category) return;
+    if (!category || !user) return;
     loadWellnessData();
-  }, [category]);
+  }, [category, user]);
 
   const loadWellnessData = async () => {
+    if (!user) return;
+    
     try {
       // Loading wellness content
+      const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id;
       
-      // Load tips for the category
-      const tipsData = await wellnessApi.getTips(category as any);
-      setTips(tipsData);
+      // Load daily AI tips and filter by category
+      const dailyTips = await wellnessRecommendationApi.getDailyAiTipsForUser(userId);
+      if (dailyTips && category) {
+        const categoryKey = category.toLowerCase() as keyof typeof dailyTips;
+        const categoryTips = dailyTips[categoryKey] || [];
+        setTips(categoryTips);
+      }
 
-      // Load recommendations based on a default risk level (could be from user profile)
-      const recsData = await wellnessRecommendationApi.getByRiskLevel('moderate');
-      setRecommendations(recsData);
+      // Load general recommendations based on user's risk level
+      const riskLevel = user.riskLevel || 'moderate';
+      const recsData = await wellnessRecommendationApi.getByRiskLevel(riskLevel);
+      // Filter recommendations by category if available
+      const filteredRecs = recsData.filter(rec => 
+        rec.category?.toLowerCase() === category?.toLowerCase()
+      );
+      setRecommendations(filteredRecs.length > 0 ? filteredRecs : recsData);
     } catch (error: any) {
       showToast(error.message || 'Failed to load wellness content', 'error');
     } finally {
@@ -126,23 +139,27 @@ export function WellnessDetail() {
         {activeTab === 'tips' && (
           <div className="space-y-4">
             {tips.length > 0 ? (
-              tips.map((tip) => (
-                <div key={tip.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
+              tips.map((tip, index) => (
+                <div key={`tip-${index}`} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition">
                   <div className="flex items-start gap-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-bold text-gray-900 mb-2">{tip.title}</h3>
                       <p className="text-gray-600 mb-4">{tip.description}</p>
                       
-                      {tip.content && (
+                      {tip.longDescription && (
                         <div className="bg-blue-50 rounded-lg p-4">
-                          <p className="text-sm font-semibold text-blue-900 mb-2">Content:</p>
-                          <p className="text-sm text-blue-800">{tip.content}</p>
+                          <p className="text-sm font-semibold text-blue-900 mb-2">Details:</p>
+                          <p className="text-sm text-blue-800">{tip.longDescription}</p>
                         </div>
                       )}
 
                       <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
                         <span>Category: <span className="font-medium text-gray-700 capitalize">{tip.category}</span></span>
-                        <span>Created: {new Date(tip.createdAt || '').toLocaleDateString()}</span>
+                        {tip.riskLevel && (
+                          <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                            {tip.riskLevel}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

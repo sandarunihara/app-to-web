@@ -130,7 +130,7 @@ export const Signup: React.FC = () => {
             localStorage.setItem('signupData', JSON.stringify(signupData));
             await authService.sendOtp(signupData.email);
             showToast('OTP sent to your email!', 'success');
-            navigate('/verify-otp');
+            navigate('/verify-otp', { state: { email: signupData.email } });
         } catch (err: any) {
             const msg = err.message || 'Registration failed';
             setErrors({ general: msg });

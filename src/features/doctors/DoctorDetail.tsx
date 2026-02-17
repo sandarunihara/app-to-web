@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Star, Clock, DollarSign, Award } from 'lucide-react';
+import { ArrowLeft, Star, Clock, DollarSign, Award, Video, Users, MessageSquare } from 'lucide-react';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { useToast } from '../../providers/ToastProvider';
+import { useAuth } from '../../providers/AuthProvider';
 import { doctorApi } from './services/doctorApi';
-import type { Doctor, TimeSlot } from '../../types/models';
+import type { Doctor, TimeSlot, AppointmentBookingRequest, AppointmentType } from '../../types/models';
 
 export function DoctorDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [doctor, setDoctor] = useState<Doctor | null>(null);
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [consultationType, setConsultationType] = useState<AppointmentType>('in_person');
   const [bookingLoading, setBookingLoading] = useState(false);
 
   useEffect(() => {
@@ -62,14 +65,32 @@ export function DoctorDetail() {
       return;
     }
 
+    if (!user) {
+      showToast('Please login to book an appointment', 'error');
+      navigate('/login');
+      return;
+    }
+
+    if (!doctor) {
+      showToast('Doctor information not available', 'error');
+      return;
+    }
+
     setBookingLoading(true);
     try {
-      await doctorApi.bookAppointment({
+      const bookingRequest: Partial<AppointmentBookingRequest> = {
+        userId: String(user.id),
         doctorId: id!,
+        email: user.email,
         date: selectedDate,
         time: selectedSlot.time,
-        type: 'in_person',
-      });
+        specialty: doctor.specialty,
+        qualifications: doctor.qualifications.join(', '),
+        doctorName: doctor.name,
+        type: consultationType,
+        status: 'scheduled',
+      };
+      await doctorApi.bookAppointment(bookingRequest);
       showToast('Appointment booked successfully', 'success');
       setTimeout(() => navigate('/doctors'), 2000);
     } catch (error: any) {
@@ -178,6 +199,57 @@ export function DoctorDetail() {
           <h3 className="text-xl font-bold text-gray-900 mb-6">Book Appointment</h3>
 
           <div className="space-y-6">
+            {/* Consultation Type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Consultation Type
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConsultationType('in_person')}
+                  className={`p-4 rounded-lg border-2 transition-colors ${
+                    consultationType === 'in_person'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-700 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Users size={24} />
+                    <span className="text-sm font-medium">In-Person</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConsultationType('video')}
+                  className={`p-4 rounded-lg border-2 transition-colors ${
+                    consultationType === 'video'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-700 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <Video size={24} />
+                    <span className="text-sm font-medium">Video Call</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConsultationType('chat')}
+                  className={`p-4 rounded-lg border-2 transition-colors ${
+                    consultationType === 'chat'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-700 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <MessageSquare size={24} />
+                    <span className="text-sm font-medium">Chat</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
             {/* Date Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -237,6 +309,9 @@ export function DoctorDetail() {
                 </p>
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">Time:</span> {selectedSlot.time}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Type:</span> <span className="capitalize">{consultationType.replace('_', ' ')}</span>
                 </p>
                 <p className="text-sm text-gray-600">
                   <span className="font-medium">Fee:</span> ${doctor.consultationFee}

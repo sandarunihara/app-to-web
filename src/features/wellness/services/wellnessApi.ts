@@ -80,19 +80,39 @@ export const wellnessApi = {
 
   sendChatMessage: async (message: string, history?: { role: string; content: string }[]): Promise<ChatMessage> => {
     try {
-      const response = await backendApi.post<ApiResponse<ChatMessage>>(
+      const response = await backendApi.post<ChatMessage>(
         ENDPOINTS.WELLNESS.CHAT,
         {
           message,
           history: history || [],
         }
       );
-      return response.data;
-    } catch (error: any) {
+      
+      // Handle both wrapped and unwrapped responses
+      if (response && typeof response === 'object') {
+        // If response has 'data' property, it's wrapped in ApiResponse
+        if ('data' in response && response.data) {
+          return response.data as ChatMessage;
+        }
+        // If response has 'content' property, it's the ChatMessage itself
+        if ('content' in response) {
+          return response as ChatMessage;
+        }
+      }
+      
+      // Fallback error message
       return {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: 'Sorry, I am having trouble responding. Please try again later.',
+        content: 'Sorry, I received an unexpected response format.',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      console.error('Chat API error:', error);
+      return {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: error.message || 'Sorry, I am having trouble responding. Please try again later.',
         timestamp: new Date().toISOString(),
       };
     }

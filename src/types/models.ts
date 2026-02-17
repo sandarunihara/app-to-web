@@ -19,6 +19,9 @@ export interface User {
   address?: string;
   nationality?: string;
   profileImage?: string;
+  weight?: number;
+  height?: number;
+  bmi?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -156,6 +159,20 @@ export interface AppointmentBookingForm {
   date: string;
   time: string;
   type: AppointmentType;
+  notes?: string;
+}
+
+export interface AppointmentBookingRequest {
+  userId: string | number;
+  doctorId: string;
+  email: string;
+  date: string;
+  time: string;
+  specialty: string;
+  qualifications: string;
+  doctorName: string;
+  type: string;
+  status: string;
   notes?: string;
 }
 
@@ -362,4 +379,63 @@ export interface DashboardSummary {
   upcomingTests?: JendoTest[];
   recentMedicalRecords?: MedicalRecord[];
   wellnessRecommendations?: WellnessRecommendation[];
+}
+
+// Report Category Types (Medical Records v2)
+export interface ReportCategory {
+  id: number;
+  name: string;
+  icon?: string;
+  createdAt: string;
+  lastUpdated: string;
+  sections?: ReportSection[];
+}
+
+export interface ReportSection {
+  id: number;
+  name: string;
+  icon?: string | null;
+  description?: string | null;
+  categoryId: number;
+  categoryName: string;
+  items?: ReportItem[];
+}
+
+export interface ReportItem {
+  id: number;
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  sectionId: number;
+  sectionName: string;
+}
+
+export interface ReportValueAttachment {
+  id: number;
+  fileUrl: string;
+  fileType: string;
+  uploadedAt: string;
+  reportItemValueId: number;
+  downloadUrl: string;
+}
+
+export interface ReportValue {
+  id: number;
+  reportItemId: number;
+  reportItemName: string;
+  userId: number;
+  valueNumber?: number | null;
+  valueText?: string | null;
+  valueDate: string;
+  createdAt: string;
+  updatedAt: string;
+  attachments: ReportValueAttachment[];
+}
+
+export interface ReportValueRequest {
+  reportItemId: number;
+  userId: number;
+  valueNumber?: number;
+  valueText?: string;
+  valueDate: string;
 }

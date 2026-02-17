@@ -41,7 +41,11 @@ export const profileApi = {
         '/users/change-password',
         { currentPassword, newPassword }
       );
-      return response.data;
+      // Return the wrapper response with success and message, not the data
+      return {
+        success: response.success ?? true,
+        message: response.message || 'Password changed successfully'
+      };
     } catch (error: any) {
       throw new Error(error.message || 'Failed to change password');
     }
